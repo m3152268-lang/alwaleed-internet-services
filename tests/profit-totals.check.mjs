@@ -71,12 +71,16 @@ function runCase(rows, filter = {}) {
     profitFilterText: { value: filter.q || '' },
     profitFilterType: { value: filter.type || 'all' },
   };
+  const body = {
+    querySelectorAll: (sel) => (sel === 'tr' ? rows : []),
+  };
   const doc = {
     querySelectorAll: (sel) => (sel === '#profitHistoryBody tr' ? rows : []),
   };
   const $ = (id) => {
     if (id in totals) return { set textContent(v) { totals[id] = v; }, get textContent() { return totals[id]; } };
     if (id in inputs) return inputs[id];
+    if (id === 'profitHistoryBody') return body;
     return null;
   };
   const canvasChart = () => {};
