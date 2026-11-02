@@ -911,7 +911,20 @@ function decorateProfitRows(){const all=allProfitRows(),led=carryLedger(profitRo
 function filteredProfitRows(){const from=$('profitFilterFrom')?.value||'',to=$('profitFilterTo')?.value||'',q=($('profitFilterText')?.value||'').toLowerCase(),type=$('profitFilterType')?.value||'all';return [...document.querySelectorAll('#profitHistoryBody tr')].filter(tr=>tr.cells.length>=5).filter(tr=>{const date=(tr.dataset.date||tr.cells[0].textContent.trim()).slice(0,10),inc=rowMoney(tr,'income'),exp=rowMoney(tr,'expenses'),net=inc-exp,notes=tr.cells[4].textContent.toLowerCase();return(!from||date>=from)&&(!to||date<=to)&&(!q||notes.includes(q))&&(type==='all'||(type==='income'&&inc>0)||(type==='expense'&&exp>0)||(type==='positive'&&net>0)||(type==='negative'&&net<0))})}
 function applyProfitFilters(){const body=$('profitHistoryBody');if(!body)return;decorateProfitRows();const rows=[...body.querySelectorAll('tr')],visible=filteredProfitRows();rows.forEach(tr=>{tr.hidden=tr.cells.length>=5&&!visible.includes(tr)});const report=carryReport(profitRowEntries(allProfitRows()),profitRowEntries(visible));const set=(id,v)=>{const el=$(id);if(el)el.textContent=fmt(v)};set('profitTotalIncome',report.totalIncome);set('profitTotalExpenses',report.totalExpenses);set('profitTotalNet',report.net);set('profitTotalCarried',report.carriedIn);set('profitTotalRemaining',report.remaining);const ordered=visible.slice().reverse(),dates=ordered.map(r=>(r.dataset.date||r.cells[0].textContent.trim()).slice(0,10));const income=ordered.map(r=>rowMoney(r,'income')),expenses=ordered.map(r=>rowMoney(r,'expenses'));canvasChart('profitHistoryChart',dates.map(d=>d.slice(5)),[{values:income},{values:expenses},{values:income.map((v,i)=>v-expenses[i])}])}
 ['dashCustomerSearch','dashCustomerState','dashCustomerSort'].forEach(id=>$(id)?.addEventListener('input',renderCustomerCards));['profitFilterFrom','profitFilterTo','profitFilterText','profitFilterType'].forEach(id=>$(id)?.addEventListener('input',applyProfitFilters));
-$('printDailyProfit')?.addEventListener('click',()=>{const rows=filteredProfitRows(),head=document.querySelector('#profitHistoryTable thead')?.outerHTML||'',body=rows.map(r=>r.outerHTML.replace(/<td><button[\s\S]*?<\/td>/g,'<td>—</td>')).join('');$('printArea').innerHTML=`<div dir="rtl"><h1 style="text-align:center">الوليد لخدمات الإنترنت</h1><h2 style="text-align:center">تقرير الأرباح اليومية</h2><p>تاريخ الطباعة: ${new Date().toLocaleDateString('ar-EG')}</p><table>${head}<tbody>${body||'<tr><td colspan="5">لا توجد سجلات مطابقة.</td></tr>'}</tbody></table><p style="text-align:center;margin-top:25px">Designed by Eng. Joseph Nady</p></div>`;$('printArea').classList.remove('hidden');document.body.classList.add('print-daily-profit');window.print();setTimeout(()=>{document.body.classList.remove('print-daily-profit');$('printArea').classList.add('hidden')},800)});
+$('printDailyProfit')?.addEventListener('click',()=>{
+ const rows=filteredProfitRows(),head=document.querySelector('#profitHistoryTable thead')?.outerHTML||'';
+ const entries=profitRowEntries(rows),report=carryReport(profitRowEntries(allProfitRows()),entries);
+ const money=v=>fmt(v)+' ج.م';
+ const bodyHtml=rows.map(r=>'<tr>'+[...r.cells].slice(0,5).map(td=>'<td>'+td.innerHTML+'</td>').join('')+'</tr>').join('');
+ const fFrom=$('profitFilterFrom')?.value||'',fTo=$('profitFilterTo')?.value||'',fText=$('profitFilterText')?.value||'',fTypeEl=$('profitFilterType');
+ const fType=fTypeEl&&fTypeEl.selectedOptions&&fTypeEl.selectedOptions[0]?fTypeEl.selectedOptions[0].textContent:'الكل';
+ const rangeText=(fFrom||fTo)?('من '+(fFrom||'أول يوم')+' إلى '+(fTo||'آخر يوم')):'جميع الأيام المسجّلة';
+ const filters='<div class="print-filters"><span>الفترة: '+rangeText+'</span><span>نوع الحركة: '+fType+'</span><span>بحث الملاحظات: '+(fText||'—')+'</span><span>عدد الحركات: '+rows.length+'</span></div>';
+ const stat=(label,value,cls)=>'<div class="printstat '+(cls||'')+'"><span class="printlabel">'+label+'</span><span class="printvalue">'+money(value)+'</span></div>';
+ const summary='<div class="print-summary">'+stat('إجمالي الدخل',report.totalIncome)+stat('إجمالي المصروفات',report.totalExpenses)+stat('صافي الأرباح (الدخل − المصروفات)',report.net)+stat('الرصيد المُرحّل من الأيام السابقة',report.carriedIn)+stat('الرصيد المتبقي بعد الخصومات',report.remaining,'print-final')+'</div>';
+ const note=report.fromCarry?('<p class="print-note">تم خصم '+money(report.fromCarry)+' من إجمالي المصروفات من الرصيد المُرحّل من الأيام السابقة، وخُصم الباقي '+money(report.totalExpenses-report.fromCarry)+' من دخل الأيام المحددة.</p>'):'';
+ $('printArea').innerHTML='<div class="print-carry-sheet" dir="rtl"><h1 style="text-align:center">الوليد لخدمات الإنترنت</h1><h2 style="text-align:center">تقرير الأرباح اليومية وإجماليات الرصيد المُرحّل</h2><p style="text-align:center">تاريخ الطباعة: '+new Date().toLocaleDateString('ar-EG')+' — الوقت: '+new Date().toLocaleTimeString('ar-EG')+'</p>'+filters+summary+note+'<table>'+head+'<tbody>'+(bodyHtml||'<tr><td colspan="5">لا توجد سجلات مطابقة.</td></tr>')+'</tbody></table><p style="text-align:center;margin-top:12px">Designed by Eng. Joseph Nady</p></div>';
+ $('printArea').classList.remove('hidden');document.body.classList.add('print-daily-profit');window.print();setTimeout(()=>{document.body.classList.remove('print-daily-profit');$('printArea').classList.add('hidden')},800)});
 const profitBody=$('profitHistoryBody');if(profitBody)new MutationObserver(()=>applyProfitFilters()).observe(profitBody,{childList:true,subtree:true});
 const noticeEl=$('notice');if(noticeEl)new MutationObserver(()=>{const t=noticeEl.textContent||'';if(/تم (إضافة|حفظ|تحديث|تسجيل|إنشاء)|نجاح/i.test(t)&&!noticeEl.classList.contains('error'))toast(t)}).observe(noticeEl,{childList:true,subtree:true,characterData:true});const modalRoot=$('modalRoot');if(modalRoot)new MutationObserver(()=>{const m=$('adminUsersMessage'),t=m?.textContent||'';if(t.startsWith('تم إنشاء')||t.startsWith('تم تحديث'))toast(t)}).observe(modalRoot,{childList:true,subtree:true,characterData:true});window.addEventListener('alw-profit-saved',()=>toast('تم حفظ بيان الأرباح بنجاح.'));
 ['alw-profit-saved','alw-profit-changed'].forEach(ev=>window.addEventListener(ev,()=>{if(typeof refreshProfitDashboard==='function')refreshProfitDashboard();if(typeof refreshGlobalSummary==='function')refreshGlobalSummary();if(typeof refreshDashboardCards==='function')refreshDashboardCards()}));
@@ -1085,3 +1098,17 @@ body:not(.light-mode) #app header.top>.actions .nav-icon{background:#36baff24;bo
  window.alwOpenCommandPalette=openPalette;
 })();
 </script>
+<style id="alw-profit-carry-print">
+@media print{
+ #printArea .print-carry-sheet{font-family:"Segoe UI",Tahoma,Arial,sans-serif;direction:rtl;color:#000;background:#fff}
+ #printArea .print-filters{display:flex;flex-wrap:wrap;gap:2mm 6mm;border:1px solid #000;padding:2mm 3mm;margin:0 0 3mm;font-size:11pt;color:#000;background:#fff}
+ #printArea .print-summary{display:grid;grid-template-columns:1fr 1fr;gap:2mm;margin:0 0 3mm}
+ #printArea .print-summary .printstat{border:1px solid #000;padding:2mm;color:#000;background:#fff}
+ #printArea .print-summary .printlabel{display:block;font-size:11pt;font-weight:600;color:#000}
+ #printArea .print-summary .printvalue{display:block;font-size:14pt;font-weight:700;color:#000}
+ #printArea .print-summary .print-final{grid-column:1/-1;border-width:2px}
+ #printArea .print-note{font-size:10.5pt;color:#000;border:1px dashed #000;padding:2mm;margin:0 0 3mm;background:#fff}
+ @page{size:A4 portrait;margin:10mm}
+}
+</style>
+
