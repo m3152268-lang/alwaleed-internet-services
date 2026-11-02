@@ -99,6 +99,7 @@ function run(rows, filter = {}) {
   };
   const body = { querySelectorAll: (sel) => (sel === 'tr' ? rows : []) };
   const tableHead = { outerHTML: '<thead><tr><th>التاريخ</th></tr></thead>' };
+  const handlerRef = { fn: null };
   const printArea = {
     classList: { add() {}, remove() {} },
     set innerHTML(v) {
@@ -108,7 +109,6 @@ function run(rows, filter = {}) {
       return printedHtml;
     }
   };
-  let printHandler = null;
 
   const $ = (id) => {
     if (id === 'profitHistoryBody') return body;
@@ -118,7 +118,7 @@ function run(rows, filter = {}) {
     if (id === 'printDailyProfit')
       return {
         addEventListener: (_ev, fn) => {
-          printHandler = fn;
+          handlerRef.fn = fn;
         }
       };
     // totals targets
@@ -155,14 +155,14 @@ function run(rows, filter = {}) {
     `${source}\n${printSource}\n
      return { filteredProfitRows, applyProfitFilters, carryLedger, carryReport,
               allProfitRows, profitRowEntries, decorateProfitRows,
-              getPrintHandler: () => typeof printHandler === 'function' ? printHandler : null };`
+   };`
   );
 
   const api = factory(doc, $, fmt, () => {}, win, (fn) => fn());
 
   api.applyProfitFilters();
 
-  return { api, totals, rows };
+  return { api, totals, rows, handler: handlerRef.fn };
 }
 
 /* ---------- 3. Cases ---------- */
@@ -318,8 +318,7 @@ console.log('\nCase 8: printed A4 report totals');
     makeRow({ date: '2026-10-01', income: 1000, expenses: 0 }),
     makeRow({ date: '2026-10-02', income: 500, expenses: 1200, notes: 'خصم كبير' })
   ];
-  const { api, totals } = run(rows, { from: '2026-10-02', to: '2026-10-02' });
-  const handler = api.getPrintHandler();
+  const { api, totals, handler } = run(rows, { from: '2026-10-02', to: '2026-10-02' });
   ok(!!handler, 'the print button has a handler');
   printedHtml = '';
   printCalls = 0;
